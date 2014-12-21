@@ -164,16 +164,16 @@ class birth_death(CTMC):
 
     def __init__(
             self,
+            max_states,
             forward,  # forward rate
             backward,  # backward rate
-            Nstates,
     ):
 
         # turn scalars into arrays
         if isinstance(forward, (int, long, float)) and isinstance(backward, (int, long, float)):
             # forward and backward are scalars
-            forward = forward * np.ones(Nstates)
-            backward = backward * np.ones(Nstates)
+            forward = forward * np.ones(max_states)
+            backward = backward * np.ones(max_states)
         elif isinstance(forward, (int, long ,float)):
             # backward is an array, forward is not
             forward = forward * np.ones(len(backward))
@@ -202,17 +202,17 @@ class supply_demand(CTMC):
 
     def __init__(
             self,
+            max_s_states,
+            max_d_states,
             supply_arrival_rate,
             supply_departure_rate,
             demand_arrival_rate,
             demand_departure_rate,
             match_rate,
-            Nsupply,
-            Ndemand
             ):
 
-        self.Nsupply = Nsupply
-        self.Ndemand = Ndemand
+        self.max_s_states = max_s_states
+        self.max_d_states = max_d_states
         self.supply_arrival_rate = supply_arrival_rate
         self.supply_departure_rate = supply_departure_rate
         self.demand_arrival_rate = demand_arrival_rate
@@ -220,11 +220,11 @@ class supply_demand(CTMC):
         self.match_rate = match_rate
  
         # supply matrix
-        s = np.tile(np.arange(self.Nsupply), (self.Ndemand, 1)).transpose()
+        s = np.tile(np.arange(self.max_s_states), (self.max_d_states, 1)).transpose()
         self.s = s
 
         # demand matrix
-        d = np.tile(np.arange(self.Ndemand), (self.Nsupply, 1))
+        d = np.tile(np.arange(self.max_d_states), (self.max_s_states, 1))
         self.d = d
 
         # record the min between supply and demand, and the excess demand
@@ -232,78 +232,78 @@ class supply_demand(CTMC):
         excess_demand = d - min_s_d
 
         # supply arrival rate is independent of supply
-        sar = supply_arrival_rate * np.ones((self.Nsupply, self.Ndemand))
+        sar = supply_arrival_rate * np.ones((self.max_s_states, self.max_d_states))
         sar[-1,:] = 0
-        sar = sar.reshape((1, self.Nsupply * self.Ndemand)).squeeze()
+        sar = sar.reshape((1, self.max_s_states * self.max_d_states)).squeeze()
         self.sar = sar
 
         # supply departure rate is proportional to supply
         sdr = supply_departure_rate * s
-        sdr = sdr.reshape((1, self.Nsupply * self.Ndemand)).squeeze()
+        sdr = sdr.reshape((1, self.max_s_states * self.max_d_states)).squeeze()
         self.sdr = sdr
 
         # demand arrival rate is independent of demand
-        dar = demand_arrival_rate * np.ones((self.Nsupply, self.Ndemand))
+        dar = demand_arrival_rate * np.ones((self.max_s_states, self.max_d_states))
         dar[:,-1] = 0
-        dar = dar.reshape((1, self.Nsupply * self.Ndemand)).squeeze()
+        dar = dar.reshape((1, self.max_s_states * self.max_d_states)).squeeze()
         self.dar = dar
 
         # demand departure (quitting) is proportional to demand
         ddr = demand_departure_rate * d
-        ddr = ddr.reshape((1, self.Nsupply * self.Ndemand)).squeeze()
+        ddr = ddr.reshape((1, self.max_s_states * self.max_d_states)).squeeze()
         self.ddr = ddr
 
         # match rate is proportional to min of supply and demand
         mr = match_rate * min_s_d
-        mr = mr.reshape((1, self.Nsupply * self.Ndemand)).squeeze()
+        mr = mr.reshape((1, self.max_s_states * self.max_d_states)).squeeze()
         self.mr = mr
 
-        SAR = np.zeros((self.Nsupply * self.Ndemand, self.Nsupply * self.Ndemand))
-        for i in range(self.Nsupply * self.Ndemand):
-            if i + self.Ndemand < self.Nsupply * self.Ndemand:
-                SAR[i, i + self.Ndemand] = sar[i]
+        SAR = np.zeros((self.max_s_states * self.max_d_states, self.max_s_states * self.max_d_states))
+        for i in range(self.max_s_states * self.max_d_states):
+            if i + self.max_d_states < self.max_s_states * self.max_d_states:
+                SAR[i, i + self.max_d_states] = sar[i]
 
-        SDR = np.zeros((self.Nsupply * self.Ndemand, self.Nsupply * self.Ndemand))
-        for i in range(self.Nsupply * self.Ndemand):
-            if i - self.Ndemand >= 0:
-                SDR[i, i - self.Ndemand] = sdr[i]
+        SDR = np.zeros((self.max_s_states * self.max_d_states, self.max_s_states * self.max_d_states))
+        for i in range(self.max_s_states * self.max_d_states):
+            if i - self.max_d_states >= 0:
+                SDR[i, i - self.max_d_states] = sdr[i]
 
-        DAR = np.zeros((self.Nsupply * self.Ndemand, self.Nsupply * self.Ndemand))
-        for i in range(self.Nsupply * self.Ndemand):
-            if i + 1 < self.Nsupply * self.Ndemand:
+        DAR = np.zeros((self.max_s_states * self.max_d_states, self.max_s_states * self.max_d_states))
+        for i in range(self.max_s_states * self.max_d_states):
+            if i + 1 < self.max_s_states * self.max_d_states:
                 DAR[i, i + 1] = dar[i]
 
-        DDR = np.zeros((self.Nsupply * self.Ndemand, self.Nsupply * self.Ndemand))
-        for i in range(self.Nsupply * self.Ndemand):
+        DDR = np.zeros((self.max_s_states * self.max_d_states, self.max_s_states * self.max_d_states))
+        for i in range(self.max_s_states * self.max_d_states):
             if i - 1 >= 0:
                 DDR[i, i - 1] = ddr[i]
 
-        MR = np.zeros((self.Nsupply * self.Ndemand, self.Nsupply * self.Ndemand))
-        for i in range(self.Nsupply * self.Ndemand):
-            if i - (self.Ndemand + 1) >= 0:
-                MR[i, i - (self.Ndemand + 1)] = mr[i]
+        MR = np.zeros((self.max_s_states * self.max_d_states, self.max_s_states * self.max_d_states))
+        for i in range(self.max_s_states * self.max_d_states):
+            if i - (self.max_d_states + 1) >= 0:
+                MR[i, i - (self.max_d_states + 1)] = mr[i]
 
         Q = SAR + SDR + DAR + DDR + MR
         Q = Q - np.diag(Q.sum(axis=1))
 
         # give a point for each unit of demand where there is no supply
         self.m_sadness = (np.logical_not(self.s).astype(int) * self.d)\
-                                  .reshape(1, self.Nsupply * self.Ndemand).squeeze()
+                                  .reshape(1, self.max_s_states * self.max_d_states).squeeze()
 
         # award a point whenever there is supply, except when there is no demand
         self.m_availability = np.logical_or(self.s, np.logical_not(self.d))\
-                                          .astype(int).reshape(1, self.Nsupply * self.Ndemand).squeeze()
+                                          .astype(int).reshape(1, self.max_s_states * self.max_d_states).squeeze()
 
-        self.m_supply = self.s.reshape(1, self.Nsupply * self.Ndemand).squeeze()
+        self.m_supply = self.s.reshape(1, self.max_s_states * self.max_d_states).squeeze()
 
-        self.m_demand = self.d.reshape(1, self.Nsupply * self.Ndemand).squeeze()
+        self.m_demand = self.d.reshape(1, self.max_s_states * self.max_d_states).squeeze()
 
         super(supply_demand, self).__init__(
             Q=Q
             )
 
     def get_state_index(self, s, d):
-        return d + self.Ndemand * s
+        return d + self.max_d_states * s
 
     def expected_sadness(self, supply, demand, time_window=1.0, discount_weight=.0001):
         # keeping discount_weight > 0 helps prevent complex number snafus
