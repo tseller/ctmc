@@ -1,7 +1,6 @@
 import scipy.linalg
 from itertools import groupby
 import numpy as np
-import copy
 
 
 class CTMC(object):
