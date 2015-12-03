@@ -90,21 +90,25 @@ class SupplyDemand(CTMC):
         Q = SAR + SDR + DAR + DDR + MR
         Q = Q - np.diag(Q.sum(axis=1))
 
-        # give a point for each unit of demand where there is no supply
-        self.m_sadness = (np.logical_not(self.s).astype(int) * self.d)\
-                                  .reshape(1, self.max_s_states * self.max_d_states).squeeze()
-
-        # award a point whenever there is supply, except when there is no demand
-        self.m_availability = np.logical_or(self.s, np.logical_not(self.d))\
-                                          .astype(int).reshape(1, self.max_s_states * self.max_d_states).squeeze()
-
-        self.m_supply = self.s.reshape(1, self.max_s_states * self.max_d_states).squeeze()
-
-        self.m_demand = self.d.reshape(1, self.max_s_states * self.max_d_states).squeeze()
-
         super(SupplyDemand, self).__init__(
             Q=Q
             )
+
+        #====================================
+        # add common metrics
+        #====================================
+     
+        # give a point for each unit of demand where there is no supply
+        self.add_metric('sadness', (np.logical_not(self.s).astype(int) * self.d)\
+                                   .reshape(1, self.max_s_states * self.max_d_states).squeeze())
+
+        # award a point whenever there is supply, except when there is no demand
+        self.add_metric('availability', np.logical_or(self.s, np.logical_not(self.d))\
+                                        .astype(int).reshape(1, self.max_s_states * self.max_d_states).squeeze())
+
+        self.add_metric('supply', self.s.reshape(1, self.max_s_states * self.max_d_states).squeeze())
+
+        self.add_metric('demand', self.d.reshape(1, self.max_s_states * self.max_d_states).squeeze())
 
     def get_state_index(self, s, d):
         return d + self.max_d_states * s
@@ -112,7 +116,7 @@ class SupplyDemand(CTMC):
     def expected_sadness(self, supply, demand, time_window=1.0, discount_weight=.0001):
         # keeping discount_weight > 0 helps prevent complex number snafus
         # tally up the metric_availability score over time time_window
-        return (self.integrate(metric='m_sadness',
+        return (self.integrate(metric='sadness',
                                t1=time_window,
                                state=self.get_state_index(supply, demand),
                                discount_weight=discount_weight))
@@ -120,7 +124,7 @@ class SupplyDemand(CTMC):
     def availability_probability(self, supply, demand, time_window=1.0, discount_weight=.0001):
         # keeping discount_weight > 0 helps prevent complex number snafus
         # tally up the metric_availability score over time time_window
-        return (self.integrate(metric='m_availability',
+        return (self.integrate(metric='availability',
                                t1=time_window,
                                state=self.get_state_index(supply, demand),
                                discount_weight=discount_weight) / float(time_window)).clip(0,1)

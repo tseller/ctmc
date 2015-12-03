@@ -12,6 +12,8 @@ class CTMC(object):
     ):
 
         self.Q = Q
+        self.metrics = {}
+        self.add_metric('state', np.arange(len(Q)))
 
     def _propagateQ(self, t=0):
         if t == np.inf:
@@ -96,7 +98,7 @@ class CTMC(object):
             return np.absolute(np.dot(np.dot(self.evecQ, np.diag(exp_eval_diff)), np.linalg.inv(self.evecQ)))
 
     def _state(self, s):
-        ''' Convert a state to its corresponding characteristic array if passed as a scalar. '''
+        ''' Convert a pure state (as an integer) to its corresponding characteristic array if passed as a scalar. '''
         l = len(self.Q)
 
         if isinstance(s, (int, long, float)):
@@ -109,51 +111,44 @@ class CTMC(object):
 
         return np.asarray(s)
 
-    def evaluate(self, metric, state):
-        ''' Evaluate a metric on a state '''
-        return np.dot(self._state(state), getattr(self, metric))
+    def evaluate(self, Q, metric=None, state=None):
+        if metric is not None:
+            Q = np.dot(Q, self.metrics[metric])
 
-    def distribution(self, metric, state):
+        if state is not None:
+            Q = np.dot(self._state(state) , Q)
+
+        return Q
+
+    def propagate(self, t=0, metric=None, state=None):
+        ''' Compute expected value of metric after state has evolved for time t.'''
+        return self.evaluate(self._propagateQ(t=t), metric=metric, state=state)
+
+    def differentiate(self, t=0, metric=None, state=None):
+        ''' Compute the derivative of a metric given an initial state. '''
+
+        differentiatedQ = np.dot(self.Q, self._propagateQ(t=t))
+
+        return self.evaluate(differentiatedQ, metric=metric, state=state)
+
+    def integrate(self, t1, t0=0, metric=None, state=None, discount_weight=.0001):
+        ''' Integrate the metric over time from an initial state. '''
+
+        integratedQ = np.absolute(self._integrateQ(t0=t0, t1=t1, discount_weight=discount_weight))
+
+        return self.evaluate(integratedQ, metric=metric, state=state)
+
+    def distribution(self, state, t=0, metric='state'):
         ''' Return the distribution of the metric on a given state.'''
         dist = []
 
-        for k, v in groupby(sorted(zip(getattr(self, metric), self._state(state))), key=lambda x: x[0]):
+        for k, v in groupby(sorted(zip(self.metrics[metric], self.propagate(t=t, state=state))), key=lambda x: x[0]):
             dist.append((k, sum([i[1] for i in v])))
 
         return dist
 
-    def propagate(self, t, metric=None, state=None):
-        ''' Move the rate matrix Q forward in time, or move a state forward in time if passed.'''
-        r = self._propagateQ(t=t)
-
-        if metric is not None:
-            r = np.dot(r, getattr(self, metric))
-
-        if state is not None:
-            r = np.dot(self._state(state) , r)
-
-        return r
- 
-    def differentiate(self, metric=None, state=None):
-        ''' Compute the derivative of a metric, possibly evaluated on a state and metric. '''
-        r = self.Q
-
-        if metric is not None:
-            r = np.dot(r, getattr(self, metric))
-
-        if state is not None:
-            r = np.dot(self._state(state), r)
-
-        return r
-
-    def integrate(self, t1, t0=0, metric=None, state=None, discount_weight=.0001):
-        ''' Integrate the metric over time, possibly evaluated on a state and metric. '''
-        r = np.absolute(self._integrateQ(t0=t0, t1=t1, discount_weight=discount_weight))
-
-        if metric is not None:
-            r = np.dot(r, getattr(self, metric))
-
-        if state is not None:
-            r = np.dot(self._state(state), r)
-
-        return r
+    def add_metric(self, name, values_array):
+        if len(values_array) == len(self.Q):
+            self.metrics[name] = values_array
+        else:
+            raise
