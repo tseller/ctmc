@@ -6,7 +6,7 @@ class BirthDeath(CTMC):
 
     def __init__(
             self,
-            max_states,
+            num_states,
             forward,  # forward rate
             backward,  # backward rate
     ):
@@ -14,8 +14,8 @@ class BirthDeath(CTMC):
         # turn scalars into arrays
         if isinstance(forward, (int, long, float)) and isinstance(backward, (int, long, float)):
             # forward and backward are scalars
-            forward = forward * np.ones(max_states)
-            backward = backward * np.ones(max_states)
+            forward = forward * np.ones(num_states)
+            backward = backward * np.ones(num_states)
         elif isinstance(forward, (int, long ,float)):
             # backward is an array, forward is not
             forward = forward * np.ones(len(backward))
@@ -38,3 +38,5 @@ class BirthDeath(CTMC):
         super(BirthDeath, self).__init__(
             Q=Q
             )
+
+        self.add_metric('population', np.arange(num_states))
